@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Flow — Connect the Dots</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --grid-line: rgba(255,255,255,0.06);
+    --grid-dot: rgba(255,255,255,0.12);
+    --panel: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --glow: 0 0 20px currentColor;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Animated background stars */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 10%, rgba(255,255,255,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 90%, rgba(255,255,255,0.15) 0%, transparent 100%),
+      radial-gradient(1px 1px at 20% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 45%, rgba(255,255,255,0.1) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 30%, rgba(255,255,255,0.2) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  header {
+    text-align: center;
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    letter-spacing: 0.15em;
+    background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 30px;
+    background: var(--border);
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .progress-bar-bg {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4af, #8ff);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  .progress-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.4);
+    white-space: nowrap;
+  }
+
+  /* Game grid container */
+  .game-outer {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.02);
+    backdrop-filter: blur(10px);
+    padding: 16px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  canvas {
+    display: block;
+    cursor: crosshair;
+    border-radius: 2px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  button {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.6);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  button:hover {
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+    background: rgba(255,255,255,0.05);
+  }
+
+  button.primary {
+    border-color: rgba(100, 200, 255, 0.4);
+    color: rgba(100, 200, 255, 0.9);
+  }
+
+  button.primary:hover {
+    background: rgba(100, 200, 255, 0.1);
+    border-color: rgba(100, 200, 255, 0.8);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(100, 200, 255, 0.2);
+  }
+
+  /* Level selector */
+  .level-select {
+    display: flex;
+    gap: 6px;
+  }
+
+  .lvl-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+  }
+
+  .lvl-btn.active {
+    border-color: rgba(255,200,100,0.6);
+    color: rgba(255,200,100,0.9);
+    background: rgba(255,200,100,0.08);
+  }
+
+  /* Win overlay */
+  .win-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    border-radius: 4px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 10;
+  }
+
+  .win-overlay.show {
+    display: flex;
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .win-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.8rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .win-subtitle {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+  }
+
+  .win-time {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #4af;
+    letter-spacing: 0.1em;
+  }
+
+  .win-best {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    color: rgba(255,200,100,0.8);
+    text-transform: uppercase;
+    min-height: 1em;
+  }
+
+  /* Best times panel */
+  .best-times-panel {
+    width: 100%;
+    max-width: 480px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .best-times-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 10px;
+  }
+
+  .best-times-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+
+  .bt-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 3px;
+    background: rgba(255,255,255,0.02);
+    transition: border-color 0.3s;
+  }
+
+  .bt-cell.has-time {
+    border-color: rgba(68,170,255,0.25);
+    background: rgba(68,170,255,0.05);
+  }
+
+  .bt-cell.current-level {
+    border-color: rgba(255,200,100,0.4);
+    background: rgba(255,200,100,0.06);
+  }
+
+  .bt-lv {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.55rem;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.1em;
+  }
+
+  .bt-time {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.05em;
+  }
+
+  .bt-cell.has-time .bt-time {
+    color: #4af;
+  }
+
+  .bt-moves {
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.05em;
+  }
+
+  .bt-cell.has-time .bt-moves {
+    color: rgba(255,255,255,0.45);
+  }
+
+  .bt-new {
+    font-size: 0.55rem;
+    color: #ffe033;
+    letter-spacing: 0.1em;
+    animation: pulse 1s infinite alternate;
+  }
+
+  @keyframes pulse {
+    from { opacity: 0.6; }
+    to   { opacity: 1;   }
+  }
+
+  .win-stars {
+    font-size: 2rem;
+    letter-spacing: 0.2em;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <h1>COLOR FLOW</h1>
+    <div class="subtitle">Connect the dots · Fill the grid</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" id="moveCount">0</div>
+      <div class="stat-label">Moves</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <div class="stat-value" id="timerDisplay">0:00</div>
+      <div class="stat-label">Time</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <div class="stat-value" id="pairsLeft">0</div>
+      <div class="stat-label">Pairs Left</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <div class="stat-value" id="coverPct">0%</div>
+      <div class="stat-label">Coverage</div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-label" id="progressLabel">0 / 0</div>
+  </div>
+
+  <div class="game-outer">
+    <canvas id="gameCanvas"></canvas>
+    <div class="win-overlay" id="winOverlay">
+      <div class="win-stars">★ ★ ★</div>
+      <div class="win-title">SOLVED!</div>
+      <div class="win-subtitle" id="winMsg">Perfect solution</div>
+      <div class="win-time" id="winTime"></div>
+      <div class="win-best" id="winBest"></div>
+      <button class="primary" onclick="nextLevel()">NEXT LEVEL →</button>
+    </div>
+  </div>
+
+  <div class="controls" style="justify-content:space-between;width:100%;max-width:480px;">
+    <div class="level-select">
+      <button class="lvl-btn active" onclick="loadLevel(0)" id="lb0">1</button>
+      <button class="lvl-btn" onclick="loadLevel(1)" id="lb1">2</button>
+      <button class="lvl-btn" onclick="loadLevel(2)" id="lb2">3</button>
+      <button class="lvl-btn" onclick="loadLevel(3)" id="lb3">4</button>
+      <button class="lvl-btn" onclick="loadLevel(4)" id="lb4">5</button>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="undoMove()">↩ UNDO</button>
+      <button class="primary" onclick="resetLevel()">↺ RESET</button>
+      <button id="muteBtn" onclick="toggleMute()" title="소리 켜기/끄기">🔊</button>
+    </div>
+  </div>
+
+  <!-- Best times record board -->
+  <div class="best-times-panel">
+    <div class="best-times-title">BEST TIMES</div>
+    <div class="best-times-grid" id="bestTimesGrid"></div>
+  </div>
+</div>
+
+<script>
+// ─── Sound Engine (Web Audio API) ────────────────────────────────
+const SFX = (() => {
+  let actx = null;
+  let muted = false;
+  function getCtx() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function play(opts = {}) {
+    if (muted) return;
+    try {
+      const ac = getCtx();
+      const { freq=440, freq2=freq, duration=0.12, volume=0.15, wave='sine', decay=0.1, delay=0 } = opts;
+      setTimeout(() => {
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = wave;
+        osc.frequency.setValueAtTime(freq, ac.currentTime);
+        if (freq2 !== freq) osc.frequency.linearRampToValueAtTime(freq2, ac.currentTime + duration);
+        gain.gain.setValueAtTime(volume, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration + decay);
+        osc.start(ac.currentTime);
+        osc.stop(ac.currentTime + duration + decay + 0.05);
+      }, delay);
+    } catch(e) {}
+  }
+  function tick()    { play({ freq:580, freq2:680, duration:0.04, volume:0.07, wave:'sine', decay:0.03 }); }
+  function erase()   { play({ freq:380, freq2:260, duration:0.06, volume:0.06, wave:'triangle', decay:0.04 }); }
+  function connect() {
+    play({ freq:520, freq2:780, duration:0.12, volume:0.2, wave:'sine', decay:0.12 });
+    play({ freq:780, freq2:1040, duration:0.1, volume:0.14, wave:'sine', decay:0.1, delay:90 });
+  }
+  function reset()   { play({ freq:340, freq2:190, duration:0.14, volume:0.1, wave:'sawtooth', decay:0.08 }); }
+  function win() {
+    [523,659,784,1047].forEach((f,i) =>
+      play({ freq:f, freq2:f*1.01, duration:0.18, volume:0.22, wave:'sine', decay:0.2, delay:i*110 })
+    );
+  }
+  function toggleMute() { muted = !muted; return muted; }
+  return { tick, erase, connect, reset, win, toggleMute, get muted(){ return muted; } };
+})();
+
+// ─── Color palette ───────────────────────────────────────────────
+const COLORS = {
+  red:    { fill: '#ff3a3a', glow: 'rgba(255,58,58,0.6)',   line: '#ff3a3a' },
+  green:  { fill: '#2ecc40', glow: 'rgba(46,204,64,0.6)',   line: '#2ecc40' },
+  blue:   { fill: '#4af',    glow: 'rgba(68,170,255,0.6)',  line: '#4af'    },
+  yellow: { fill: '#ffe033', glow: 'rgba(255,224,51,0.6)',  line: '#ffe033' },
+  pink:   { fill: '#ff69b4', glow: 'rgba(255,105,180,0.6)', line: '#ff69b4' },
+  orange: { fill: '#ff8c00', glow: 'rgba(255,140,0,0.6)',   line: '#ff8c00' },
+  purple: { fill: '#b44fff', glow: 'rgba(180,79,255,0.6)',  line: '#b44fff' },
+  cyan:   { fill: '#00ffe0', glow: 'rgba(0,255,224,0.6)',   line: '#00ffe0' },
+  white:  { fill: '#ffffff', glow: 'rgba(255,255,255,0.5)', line: '#ffffff' },
+  maroon: { fill: '#c0392b', glow: 'rgba(192,57,43,0.5)',   line: '#c0392b' },
+};
+
+// ─── Level definitions ────────────────────────────────────────────
+// Each entry: { size: N, dots: [ [r,c,'color'], ... ] }
+const LEVELS = [
+  // Level 1 — 5x5, 4 colors ✅ verified solvable
+  {
+    size: 5,
+    dots: [
+      [3,4,'red'],    [1,3,'red'],
+      [2,1,'blue'],   [4,0,'blue'],
+      [3,1,'green'],  [0,0,'green'],
+      [2,4,'yellow'], [1,2,'yellow'],
+    ]
+  },
+  // Level 2 — 6x6, 5 colors ✅ verified solvable
+  {
+    size: 6,
+    dots: [
+      [4,1,'red'],    [1,4,'red'],
+      [4,4,'blue'],   [2,3,'blue'],
+      [2,0,'green'],  [3,1,'green'],
+      [1,0,'yellow'], [0,0,'yellow'],
+      [4,0,'pink'],   [3,4,'pink'],
+    ]
+  },
+  // Level 3 — 7x7, 6 colors ✅ verified solvable (flood-fill seed=13)
+  {
+    size: 7,
+    dots: [
+      [1,3,'red'],    [2,2,'red'],
+      [5,4,'blue'],   [6,6,'blue'],
+      [0,3,'green'],  [2,6,'green'],
+      [4,1,'yellow'], [4,2,'yellow'],
+      [0,0,'pink'],   [4,0,'pink'],
+      [2,3,'orange'], [3,6,'orange'],
+    ]
+  },
+  // Level 4 — 8x8, 7 colors ✅ verified solvable (flood-fill seed=6)
+  {
+    size: 8,
+    dots: [
+      [3,6,'red'],    [0,5,'red'],
+      [5,0,'blue'],   [4,1,'blue'],
+      [0,0,'green'],  [0,3,'green'],
+      [4,3,'yellow'], [7,5,'yellow'],
+      [2,2,'pink'],   [5,1,'pink'],
+      [0,4,'orange'], [2,6,'orange'],
+      [4,6,'purple'], [4,7,'purple'],
+    ]
+  },
+  // Level 5 — 9x9, 8 colors ✅ verified solvable (flood-fill seed=9)
+  {
+    size: 9,
+    dots: [
+      [5,6,'red'],    [8,7,'red'],
+      [4,3,'blue'],   [7,2,'blue'],
+      [0,0,'green'],  [3,0,'green'],
+      [6,6,'yellow'], [8,8,'yellow'],
+      [8,2,'pink'],   [8,0,'pink'],
+      [3,8,'orange'], [1,5,'orange'],
+      [0,1,'purple'], [3,3,'purple'],
+      [2,4,'cyan'],   [4,6,'cyan'],
+    ]
+  },
+];
+
+// ─── Game state ───────────────────────────────────────────────────
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let CELL = 52;
+let N = 5;
+let dots = [];       // { r, c, color }
+let paths = {};      // color -> [{r,c}, ...]
+let grid = [];       // grid[r][c] = color or null
+let dragging = null; // { color, path }
+let moveCount = 0;
+let currentLevel = 0;
+let history = [];
+
+// Timer
+let timerStart = null;
+let timerElapsed = 0;  // ms accumulated (pauses on win)
+let timerRAF = null;
+let timerRunning = false;
+
+// Best times: array of { time (ms), moves } per level, or null
+let bestTimes = Array(5).fill(null);
+
+// ─── Timer ───────────────────────────────────────────────────────
+function timerTick() {
+  if (!timerRunning) return;
+  const now = performance.now();
+  const total = timerElapsed + (now - timerStart);
+  document.getElementById('timerDisplay').textContent = formatTime(total);
+  timerRAF = requestAnimationFrame(timerTick);
+}
+
+function startTimer() {
+  if (timerRunning) return;
+  timerRunning = true;
+  timerStart = performance.now();
+  timerRAF = requestAnimationFrame(timerTick);
+}
+
+function stopTimer() {
+  if (!timerRunning) return;
+  timerRunning = false;
+  timerElapsed += performance.now() - timerStart;
+  cancelAnimationFrame(timerRAF);
+}
+
+function resetTimer() {
+  stopTimer();
+  timerElapsed = 0;
+  timerStart = null;
+  document.getElementById('timerDisplay').textContent = '0:00';
+}
+
+function getElapsed() {
+  if (timerRunning) return timerElapsed + (performance.now() - timerStart);
+  return timerElapsed;
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return `${m}:${ss}`;
+}
+
+function formatTimeMs(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  const cs = String(Math.floor((ms % 1000) / 10)).padStart(2, '0');
+  return m > 0 ? `${m}:${ss}.${cs}` : `${ss}.${cs}s`;
+}
+
+// ─── Best times panel ─────────────────────────────────────────────
+function renderBestTimes(newRecord = false) {
+  const container = document.getElementById('bestTimesGrid');
+  container.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'bt-cell' +
+      (bestTimes[i] ? ' has-time' : '') +
+      (i === currentLevel ? ' current-level' : '');
+
+    const bt = bestTimes[i];
+    const isNew = newRecord && i === currentLevel;
+
+    cell.innerHTML = `
+      <div class="bt-lv">LV ${i+1}</div>
+      <div class="bt-time">${bt ? formatTimeMs(bt.time) : '--:--'}</div>
+      ${bt ? `<div class="bt-moves">${bt.moves} moves</div>` : ''}
+      ${isNew ? '<div class="bt-new">★ NEW</div>' : ''}
+    `;
+    container.appendChild(cell);
+  }
+}
+
+
+function initGrid() {
+  grid = Array.from({length:N}, () => Array(N).fill(null));
+}
+
+function loadLevel(idx) {
+  currentLevel = idx;
+  document.querySelectorAll('.lvl-btn').forEach((b,i) => {
+    b.classList.toggle('active', i === idx);
+  });
+  const lvl = LEVELS[idx];
+  N = lvl.size;
+
+  // Responsive cell size
+  const maxBoard = Math.min(window.innerWidth - 80, 480);
+  CELL = Math.floor(maxBoard / N);
+  CELL = Math.max(40, Math.min(CELL, 64));
+
+  canvas.width  = N * CELL;
+  canvas.height = N * CELL;
+
+  dots = lvl.dots.map(([r,c,color]) => ({r,c,color}));
+  paths = {};
+  for (const d of dots) {
+    if (!paths[d.color]) paths[d.color] = [];
+  }
+  initGrid();
+  for (const d of dots) grid[d.r][d.c] = d.color;
+  moveCount = 0;
+  dragging = null;
+  history = [];
+  resetTimer();
+  document.getElementById('winOverlay').classList.remove('show');
+  updateStats();
+  render();
+  renderBestTimes();
+}
+
+function resetLevel() {
+  SFX.reset();
+  loadLevel(currentLevel);
+}
+
+function nextLevel() {
+  loadLevel((currentLevel + 1) % LEVELS.length);
+}
+
+// ─── Stats ────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('moveCount').textContent = moveCount;
+
+  // Count completed pairs
+  const colorSet = [...new Set(dots.map(d=>d.color))];
+  let completed = 0;
+  for (const c of colorSet) {
+    const p = paths[c];
+    if (p && p.length >= 2) {
+      const ends = dots.filter(d=>d.color===c);
+      const head = p[0], tail = p[p.length-1];
+      const matchA = ends.some(e=>e.r===head.r&&e.c===head.c);
+      const matchB = ends.some(e=>e.r===tail.r&&e.c===tail.c);
+      if (matchA && matchB) completed++;
+    }
+  }
+  const total = colorSet.length;
+  document.getElementById('pairsLeft').textContent = total - completed;
+
+  // Coverage
+  let filled = 0;
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (grid[r][c]) filled++;
+  const pct = Math.round(filled/(N*N)*100);
+  document.getElementById('coverPct').textContent = pct + '%';
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = filled + ' / ' + (N*N);
+
+  // Win condition
+  if (pct === 100 && completed === total) {
+    stopTimer();
+    SFX.win();
+    setTimeout(showWin, 300);
+  }
+}
+
+function showWin() {
+  const elapsed = getElapsed();
+
+  // Check & save best time
+  const prev = bestTimes[currentLevel];
+  let isNewRecord = false;
+  if (!prev || elapsed < prev.time) {
+    bestTimes[currentLevel] = { time: elapsed, moves: moveCount };
+    isNewRecord = true;
+  }
+
+  // Win overlay text
+  document.getElementById('winMsg').textContent =
+    moveCount <= LEVELS[currentLevel].dots.length * 3
+      ? '✦ Flawless! Minimum moves!'
+      : `Solved in ${moveCount} moves`;
+
+  document.getElementById('winTime').textContent = formatTimeMs(elapsed);
+
+  const bestEl = document.getElementById('winBest');
+  if (isNewRecord) {
+    bestEl.textContent = '★ NEW BEST TIME!';
+  } else if (prev) {
+    bestEl.textContent = `Best: ${formatTimeMs(prev.time)}`;
+  } else {
+    bestEl.textContent = '';
+  }
+
+  renderBestTimes(isNewRecord);
+  document.getElementById('winOverlay').classList.add('show');
+}
+
+// ─── Undo ─────────────────────────────────────────────────────────
+function undoMove() {
+  if (!history.length) return;
+  SFX.erase();
+  const snap = history.pop();
+  paths = JSON.parse(JSON.stringify(snap.paths));
+  grid  = JSON.parse(JSON.stringify(snap.grid));
+  moveCount = snap.moveCount;
+  render();
+  updateStats();
+}
+
+function saveHistory() {
+  history.push({
+    paths: JSON.parse(JSON.stringify(paths)),
+    grid:  JSON.parse(JSON.stringify(grid)),
+    moveCount
+  });
+  if (history.length > 50) history.shift();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────
+function cellAt(mx, my) {
+  const r = Math.floor(my / CELL);
+  const c = Math.floor(mx / CELL);
+  if (r<0||r>=N||c<0||c>=N) return null;
+  return {r,c};
+}
+
+function dotAt(r,c) {
+  return dots.find(d=>d.r===r&&d.c===c)||null;
+}
+
+function isAdjacent(a,b) {
+  return (Math.abs(a.r-b.r)+Math.abs(a.c-b.c))===1;
+}
+
+function pathContains(path, r, c) {
+  return path.some(p=>p.r===r&&p.c===c);
+}
+
+function isDotEnd(color, r, c) {
+  return dots.some(d=>d.color===color&&d.r===r&&d.c===c);
+}
+
+// ─── Draw ──────────────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+  drawPaths();
+  drawDots();
+  if (dragging) drawDraggingPath();
+}
+
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i=0;i<=N;i++) {
+    ctx.beginPath();
+    ctx.moveTo(i*CELL, 0); ctx.lineTo(i*CELL, N*CELL);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i*CELL); ctx.lineTo(N*CELL, i*CELL);
+    ctx.stroke();
+  }
+  // Grid intersection dots
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  for (let r=0;r<=N;r++) for (let c=0;c<=N;c++) {
+    ctx.beginPath();
+    ctx.arc(c*CELL, r*CELL, 1.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawPaths() {
+  for (const [color, path] of Object.entries(paths)) {
+    if (!path || path.length < 2) continue;
+    const col = COLORS[color];
+    ctx.save();
+    ctx.shadowColor = col.glow;
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = col.line;
+    ctx.lineWidth = CELL * 0.38;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(path[0].c*CELL+CELL/2, path[0].r*CELL+CELL/2);
+    for (let i=1;i<path.length;i++) {
+      ctx.lineTo(path[i].c*CELL+CELL/2, path[i].r*CELL+CELL/2);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawDraggingPath() {
+  const { color, path } = dragging;
+  if (!path || path.length < 1) return;
+  const col = COLORS[color];
+  ctx.save();
+  ctx.shadowColor = col.glow;
+  ctx.shadowBlur = 18;
+  ctx.strokeStyle = col.line;
+  ctx.lineWidth = CELL * 0.38;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.globalAlpha = 0.9;
+  ctx.setLineDash([CELL*0.25, CELL*0.1]);
+  ctx.beginPath();
+  ctx.moveTo(path[0].c*CELL+CELL/2, path[0].r*CELL+CELL/2);
+  for (let i=1;i<path.length;i++) {
+    ctx.lineTo(path[i].c*CELL+CELL/2, path[i].r*CELL+CELL/2);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDots() {
+  for (const d of dots) {
+    const col = COLORS[d.color];
+    const x = d.c*CELL+CELL/2, y = d.r*CELL+CELL/2;
+    const r = CELL*0.3;
+    ctx.save();
+    ctx.shadowColor = col.glow;
+    ctx.shadowBlur = 20;
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(x, y, r+3, 0, Math.PI*2);
+    ctx.strokeStyle = col.fill;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.4;
+    ctx.stroke();
+    // Fill
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = col.fill;
+    ctx.fill();
+    // Inner highlight
+    ctx.beginPath();
+    ctx.arc(x-r*0.25, y-r*0.25, r*0.3, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ─── Input handling ───────────────────────────────────────────────
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  if (e.touches) {
+    return {
+      x: (e.touches[0].clientX - rect.left) * scaleX,
+      y: (e.touches[0].clientY - rect.top)  * scaleY
+    };
+  }
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top)  * scaleY
+  };
+}
+
+function onPointerDown(e) {
+  e.preventDefault();
+  const {x,y} = getPos(e);
+  const cell = cellAt(x,y);
+  if (!cell) return;
+  const {r,c} = cell;
+
+  // Must start on a dot or existing path
+  const dot = dotAt(r,c);
+  const existingColor = grid[r][c];
+
+  if (!dot && !existingColor) return;
+
+  // Start timer on first interaction
+  startTimer();
+
+  saveHistory();
+  moveCount++;
+
+  let color;
+  if (dot) {
+    color = dot.color;
+  } else {
+    // Click on a path segment — retrace from that point
+    color = existingColor;
+    const path = paths[color];
+    if (path) {
+      const idx = path.findIndex(p=>p.r===r&&p.c===c);
+      if (idx !== -1) {
+        // Clear cells after this index
+        for (let i=idx+1;i<path.length;i++) {
+          if (!isDotEnd(color, path[i].r, path[i].c)) {
+            grid[path[i].r][path[i].c] = null;
+          }
+        }
+        path.splice(idx+1);
+      }
+    }
+  }
+
+  if (dot) {
+    // Clear this color's path entirely, start fresh
+    const oldPath = paths[color] || [];
+    for (const p of oldPath) {
+      if (!isDotEnd(color, p.r, p.c)) grid[p.r][p.c] = null;
+    }
+    paths[color] = [{r,c}];
+    grid[r][c] = color;
+  }
+
+  dragging = { color, path: paths[color] };
+  render();
+  updateStats();
+}
+
+function onPointerMove(e) {
+  e.preventDefault();
+  if (!dragging) return;
+  const {x,y} = getPos(e);
+  const cell = cellAt(x,y);
+  if (!cell) return;
+  const {r,c} = cell;
+  const { color, path } = dragging;
+
+  const last = path[path.length-1];
+  if (last.r===r && last.c===c) return;
+  if (!isAdjacent(last, {r,c})) return;
+
+  // Backtrack if revisiting previous cell
+  if (path.length >= 2) {
+    const prev = path[path.length-2];
+    if (prev.r===r && prev.c===c) {
+      const removed = path.pop();
+      if (!isDotEnd(color, removed.r, removed.c)) grid[removed.r][removed.c] = null;
+      render();
+      updateStats();
+      return;
+    }
+  }
+
+  // If cell has a different color path, clear that color
+  if (grid[r][c] && grid[r][c] !== color) {
+    const otherColor = grid[r][c];
+    if (!isDotEnd(otherColor, r, c)) {
+      const otherPath = paths[otherColor] || [];
+      const idx = otherPath.findIndex(p=>p.r===r&&p.c===c);
+      if (idx !== -1) {
+        for (let i=idx;i<otherPath.length;i++) {
+          if (!isDotEnd(otherColor, otherPath[i].r, otherPath[i].c))
+            grid[otherPath[i].r][otherPath[i].c] = null;
+        }
+        otherPath.splice(idx);
+      }
+    } else {
+      return; // Can't overwrite another dot
+    }
+  }
+
+  // Already in own path — backtrack to that point
+  const selfIdx = pathContains(path, r, c);
+  if (selfIdx) {
+    const idx = path.findIndex(p=>p.r===r&&p.c===c);
+    for (let i=idx+1;i<path.length;i++) {
+      if (!isDotEnd(color, path[i].r, path[i].c)) grid[path[i].r][path[i].c]=null;
+    }
+    path.splice(idx+1);
+    render();
+    updateStats();
+    return;
+  }
+
+  // Stop at destination dot
+  const destDot = dotAt(r,c);
+  path.push({r,c});
+  grid[r][c] = color;
+  if (destDot && destDot.color === color && path.length > 1) {
+    SFX.connect();
+    dragging = null;
+    render();
+    updateStats();
+    return;
+  }
+  if (destDot && destDot.color !== color) {
+    path.pop();
+    grid[r][c] = destDot.color;
+  } else {
+    SFX.tick();
+  }
+
+  render();
+  updateStats();
+}
+
+function onPointerUp(e) {
+  e.preventDefault();
+  dragging = null;
+  render();
+  updateStats();
+}
+
+canvas.addEventListener('mousedown',  onPointerDown);
+canvas.addEventListener('mousemove',  onPointerMove);
+canvas.addEventListener('mouseup',    onPointerUp);
+canvas.addEventListener('touchstart', onPointerDown, {passive:false});
+canvas.addEventListener('touchmove',  onPointerMove, {passive:false});
+canvas.addEventListener('touchend',   onPointerUp,   {passive:false});
+
+// ─── Start ────────────────────────────────────────────────────────
+function toggleMute() {
+  const muted = SFX.toggleMute();
+  document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊';
+}
+
+loadLevel(0);
+renderBestTimes();
+</script>
+</body>
+</html>
